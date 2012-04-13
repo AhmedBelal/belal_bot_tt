@@ -4,28 +4,18 @@ var repl = require('repl');
 var fs = require('fs');
 
 // A turntable.fm bot implemented with ttapi. 
-//
-// Required properties:
-// {
-//     "bot": {
-//         "auth": "Auth header to join Turntable",
-//         "userID": "User ID of bot",
-//         "roomID": "Room to join on connect"
-//     }
-// }
-//
-// Property values can be found with: http://alaingilbert.github.com/Turntable-API/bookmarklet.html 
-//
+
 function RoboDJ(properties) {
     
     this.auth   = properties.bot.auth;
     this.userID = properties.bot.userID;
     this.roomID = properties.bot.roomID;
     this.bot = null;
-    this.filter = "indie";
+    this.filter = "";
     this.lastSongIdPlayed = "";
     this.botName = "";
     this.masterId = properties.bot.masterId;
+	this.masterName = properties.bot.masterName;
     this.masterOnlyCommands = properties.bot.masterOnlyCommands;
     this.djAgainOnKnockedDown = properties.bot.djAgainOnKnockedDown;
     this.lastCommand = "";
@@ -47,13 +37,27 @@ function RoboDJ(properties) {
             }
             if (self.bot.currentDjId === self.userID) {
                 self.lastSongIdPlayed = self.bot.currentSongId;
-                self.findAndAddSong();
+                self.findAndAddSong(0);
             }
         });
+
+		//welcome new people
+		this.bot.on('registered',	function (data) { 
+		    if (data.user[0].userid == self.userID) { // announces himself
+		      self.bot.speak(self.botName+' IS IN DA HOUSE')
+		    } else if (data.user[0].userid == self.masterId) { //if the master arrives announce him specifically
+		      self.bot.speak('ALL BOW BEFORE '+self.masterName+'! The master has arrived!');
+		    } else {
+			  self.bot.pm((data.user[0].name+' has entered the room!'), self.masterId); //alert master
+		      self.bot.pm(('Hey '+data.user[0].name+'! I am a robot DJ created by '+self.masterName+' to DJ for you. Welcome!'), data.user[0].userid ); //welcome the rest
+			  self.bot.speak('Hi '+data.user[0].name+'!');
+			  self.bot.speak('@'+self.masterName+', we have a visitor: '+data.user[0].name);
+		    }
+		});
         
         // On first joining a room, wait 3 seconds before trying to DJ
         // and wait 2 seconds and try to find out bot's own name.
-        this.bot.on('registered', function(data) {
+        this.bot.on('roomChanged', function(data) {
             util.log("Joined room");
             setTimeout(self.tryToDj, 3000);
             setTimeout(self.findDjName, 2000);
@@ -73,6 +77,26 @@ function RoboDJ(properties) {
                 setTimeout(self.tryToDj, 10000);
             }
         });
+
+		// Skip songs that the master lames
+		this.bot.on('update_votes', function(data) {
+			data.room.metadata.votelog.forEach(function(vote) {
+		    	if (vote[0] == self.masterId && vote[1] == "down") {
+					if (self.bot.currentDjId === self.userID) {
+			  			self.bot.speak("Sorry master! I will skip this song.");
+						self.bot.skip();
+					}
+					else{
+						self.bot.vote('down');
+					}
+				}
+				if (vote[0] == self.masterId && vote[1] == "up") {
+					self.bot.vote('up');
+				}
+			});
+		});	
+				
+		
         
         // Responds to chat room messages
         this.bot.on('speak', function(data) {
@@ -81,9 +105,14 @@ function RoboDJ(properties) {
             var m = data.text.match(/^\/play (.*)/);
             if (m && self.authorizedCommand("play", data.userid)) {
                 if (m[1] !== "") {
-                    self.filter = m[1];
+					if (m[1] =="reset") {
+						self.filter = "";
+					}
+					else {
+                    	self.filter = m[1];
+					}
                     self.bot.speak("I will try to play " + self.filter);
-                    self.findAndAddSong();
+                    self.findAndAddSong(0);
                 }
             }
             
@@ -96,11 +125,16 @@ function RoboDJ(properties) {
             if (data.text.match(/^\/up/) && self.authorizedCommand("up", data.userid)) {
                 self.tryToDj();
             }
+
+            // Skip song
+            if (data.text.match(/^\/skip/) && self.authorizedCommand("skip", data.userid)) {
+                self.bot.skip();
+            }
             
             // Respond to bot's own name
-            var pattern = new RegExp(self.botName, "i");
+            var pattern = new RegExp(("^"+self.botName+"$"), "i");
             if (pattern.test(data.text)) {
-                self.bot.speak("Type '/play <string>' to change my taste in music");
+                self.bot.speak("Type '/play <string>' to change my taste in music e.g. /play indie");
             }
         });
         
@@ -143,7 +177,7 @@ function RoboDJ(properties) {
             if (resp.room.metadata.djcount < resp.room.metadata.max_djs) {
                 util.log("Room has open DJ spots, adding DJ...");
                 self.bot.addDj();
-                self.findAndAddSong();
+                self.findAndAddSong(0);
             } else {
                 util.log("Room has no open DJ spots, waiting...");
                 setTimeout(self.tryToDj, 60000);
@@ -167,20 +201,21 @@ function RoboDJ(properties) {
         });
     };
 
-    // Look for new songs to add to playlist. Get the Top 20 list of rooms and find
+    // Look for new songs to add to playlist. Get the up to top 100 rooms and find
     // the room titles that match the bot's filter. Add the current song playing in 
     // these rooms.
-    this.findAndAddSong = function() {
+    this.findAndAddSong = function(index) {
         util.log("Finding a new song to add");
-        this.bot.listRooms(0, function(resp) {
+        this.bot.listRooms(index, function(resp) {
             var added = 0;
-            resp.rooms.forEach(function(room) {
+            resp.rooms.sort(self.randOrd).forEach(function(room) {
                 var pattern = new RegExp(self.filter, "i");
                 if (pattern.test(room[0].name)) {
                     var songId = room[0].metadata.current_song._id;
+					var songName = room[0].metadata.current_song.metadata.song;
                     if (songId !== self.lastSongIdPlayed) {
                         self.bot.playlistAdd(songId);
-                        util.log("Added song: " + songId + " from room " + room[0].name);
+                        util.log("Added song: " + songName + " from room " + room[0].name);
                         added++;
                     } else {
                         util.log("Not adding last song played with id " + songId);
@@ -189,9 +224,13 @@ function RoboDJ(properties) {
             });
             
             // Let everybody know the filter may not be any good.
-            if (added === 0) {
-                self.bot.speak("I'm having trouble finding new songs.");
+            if (added == 0 && index<=100) {
+				self.findAndAddSong(index+20);
             }
+
+			if (added > 0) {
+				self.bot.speak("Added " + added + " " + self.filter + " song(s) to playlist.");
+			}	
             
             util.log("Added " + added + " songs to playlist.");
         });
@@ -207,6 +246,10 @@ function RoboDJ(properties) {
             util.log("Playlist Length is " + resp.list.length);
         });
     };
+
+	this.randOrd = function() {
+	  return (Math.round(Math.random())-0.5);
+	}
 
 }
 
