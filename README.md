@@ -1,6 +1,6 @@
 About
 =================
-A Turntable.fm bot built with node.js, forked from [RoboDj](https://github.com/mmattozzi/robodj). As your personal DJ, this bot fetches songs from the top rooms in Turntable, filtered by the genre of your choice (all genres by default). This bot has improved song population and randomization over the original RoboDj and caters to its master's likes/lames by skipping songs that the master lames.
+A [Turntable.fm](http://turntable.fm) bot built with node.js, forked from [RoboDj](https://github.com/mmattozzi/robodj). As your personal DJ, this bot fetches songs from the top rooms on Turntable, filtered by the genre of your choice (all genres by default). This bot has improved song population and randomization over the original RoboDj and caters to its master's likes/lames by skipping songs that the master lames.
 
 Requires
 =================
