@@ -44,7 +44,7 @@ function RoboDJ(properties) {
 		//welcome new people
 		this.bot.on('registered',	function (data) { 
 		    if (data.user[0].userid == self.userID) { // announces himself
-		      self.bot.speak(self.botName+' IS IN DA HOUSE')
+			  //none
 		    } else if (data.user[0].userid == self.masterId) { //if the master arrives announce him specifically
 		      self.bot.speak('ALL BOW BEFORE '+self.masterName+'! The master has arrived!');
 		    } else {
@@ -61,6 +61,7 @@ function RoboDJ(properties) {
             util.log("Joined room");
             setTimeout(self.tryToDj, 3000);
             setTimeout(self.findDjName, 2000);
+			setTimeout(self.bot.speak('BELAL_BOT IS IN DA HOUSE'), 5000);
         });
         
         // When bot is done playing his own song, prune playlist
@@ -166,6 +167,7 @@ function RoboDJ(properties) {
             }
             self.botName = name;
             util.log("My name is " + self.botName);
+			return name;
         });
     };
 
