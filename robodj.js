@@ -15,7 +15,7 @@ function RoboDJ(properties) {
     this.lastSongIdPlayed = "";
     this.botName = "";
     this.masterId = properties.bot.masterId;
-	this.masterName = properties.bot.masterName;
+	  this.masterName = properties.bot.masterName;
     this.masterOnlyCommands = properties.bot.masterOnlyCommands;
     this.djAgainOnKnockedDown = properties.bot.djAgainOnKnockedDown;
     this.lastCommand = "";
@@ -41,27 +41,26 @@ function RoboDJ(properties) {
             }
         });
 
-		//welcome new people
+		// Welcome new people
 		this.bot.on('registered',	function (data) { 
-		    if (data.user[0].userid == self.userID) { // announces himself
-			  //none
-		    } else if (data.user[0].userid == self.masterId) { //if the master arrives announce him specifically
+		    if (data.user[0].userid == self.userID) { 
+          // announces himself
+		    } else if (data.user[0].userid == self.masterId) { 
+          // if the master arrives announce him specifically
 		      self.bot.speak('ALL BOW BEFORE '+self.masterName+'! The master has arrived!');
 		    } else {
-			  self.bot.pm((data.user[0].name+' has entered the room!'), self.masterId); //alert master
 		      self.bot.pm(('Hey '+data.user[0].name+'! I am a robot DJ created by '+self.masterName+' to DJ for you. Welcome!'), data.user[0].userid ); //welcome the rest
-			  self.bot.speak('Hi '+data.user[0].name+'!');
-			  self.bot.speak('@'+self.masterName+', we have a visitor: '+data.user[0].name);
+			    self.bot.speak('Hi '+data.user[0].name+'!');
 		    }
 		});
         
         // On first joining a room, wait 3 seconds before trying to DJ
         // and wait 2 seconds and try to find out bot's own name.
         this.bot.on('roomChanged', function(data) {
-            util.log("Joined room");
-            setTimeout(self.tryToDj, 3000);
-            setTimeout(self.findDjName, 2000);
-			setTimeout(self.bot.speak('BELAL_BOT IS IN DA HOUSE'), 5000);
+          util.log("Joined room");
+          setTimeout(self.tryToDj, 3000);
+          setTimeout(self.findDjName, 2000);
+			    setTimeout(self.bot.speak('BELAL_BOT IS IN DA HOUSE'), 5000);
         });
         
         // When bot is done playing his own song, prune playlist
